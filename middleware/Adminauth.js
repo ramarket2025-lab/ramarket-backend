@@ -1,10 +1,3 @@
-// middleware/adminAuth.js
-// ------------------------------------------------------------------
-// Lightweight admin auth middleware.
-// The adminAuth route issues a signed JWT on login; every other admin
-// route runs this middleware first to verify the token.
-// ------------------------------------------------------------------
-
 const jwt = require('jsonwebtoken');
 
 module.exports = function adminAuth(req, res, next) {
