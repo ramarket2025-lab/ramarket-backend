@@ -2,65 +2,70 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 
-// 🟢 Place Order
+// POST /api/orders/place — place a new order
 router.post('/place', async (req, res) => {
-  const { user_id, items, total } = req.body;
+  const {
+    user_phone, items, total, subtotal, discount, coupon,
+    payment_method, payment_status, razorpay_payment_id,
+    address, address_id, shipping_address, date
+  } = req.body;
 
-  if (!user_id || !items || !total) {
-    return res.status(400).json({ message: "Missing required fields" });
+  if (!user_phone || !items || !total) {
+    return res.status(400).json({ message: "user_phone, items and total are required" });
   }
 
-  try {
-    // 1️⃣ Insert into orders table
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert([{ user_id, total }])
-      .select();
+  const now = new Date().toISOString();
 
-    if (orderError) return res.status(400).json(orderError);
-
-    const order_id = orderData[0].id;
-
-    // 2️⃣ Insert into order_items table
-    const itemsToInsert = items.map(item => ({
-      order_id,
-      product_id: item.product_id,
-      quantity: item.qty,
-      price: item.price || 0
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(itemsToInsert);
-
-    if (itemsError) return res.status(400).json(itemsError);
-
-    res.json({
-      success: true,
-      order_id
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 🟢 Get Orders with Items
-router.get('/:user_id', async (req, res) => {
-  const { data, error } = await supabase
+  const { data: savedOrder, error } = await supabase
     .from('orders')
-    .select(`
-      *,
-      order_items (
-        product_id,
-        quantity,
-        price
-      )
-    `)
-    .eq('user_id', req.params.user_id);
+    .insert([{
+      user_phone,
+      total,
+      subtotal:            subtotal || total,
+      discount:            discount || 0,
+      coupon:              coupon || null,
+      status:              'Processing',
+      payment_method:      payment_method || 'Cash on Delivery',
+      payment_status:      payment_status || 'Pending',
+      razorpay_payment_id: razorpay_payment_id || null,
+      payment_id:          razorpay_payment_id || null,
+      items,
+      address:             address || null,
+      address_id:          address_id || null,
+      shipping_address:    shipping_address || null,
+      date:                date || new Date().toLocaleString('en-IN'),
+      tracking_id:         null,
+      courier:             null,
+      last_update:         now,
+    }])
+    .select()
+    .single();
 
   if (error) return res.status(400).json(error);
+  res.json({ success: true, order_id: savedOrder.id, order: savedOrder });
+});
 
+// GET /api/orders/user/:phone — get all orders for a user
+router.get('/user/:phone', async (req, res) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('user_phone', req.params.phone)
+    .order('id', { ascending: false });
+
+  if (error) return res.status(400).json(error);
+  res.json(data);
+});
+
+// GET /api/orders/:id — get single order by ID
+router.get('/:id', async (req, res) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error) return res.status(404).json({ message: "Order not found" });
   res.json(data);
 });
 
