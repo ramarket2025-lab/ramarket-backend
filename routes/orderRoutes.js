@@ -1,5 +1,5 @@
-const express = require('express');
-const router = express.Router();
+const express  = require('express');
+const router   = express.Router();
 const supabase = require('../supabase');
 
 // POST /api/orders/place — place a new order
@@ -11,7 +11,7 @@ router.post('/place', async (req, res) => {
   } = req.body;
 
   if (!user_phone || !items || !total) {
-    return res.status(400).json({ message: "user_phone, items and total are required" });
+    return res.status(400).json({ message: 'user_phone, items and total are required' });
   }
 
   const now = new Date().toISOString();
@@ -45,7 +45,10 @@ router.post('/place', async (req, res) => {
   res.json({ success: true, order_id: savedOrder.id, order: savedOrder });
 });
 
-// GET /api/orders/user/:phone — get all orders for a user
+// FIX: /user/:phone MUST come before /:id
+// Otherwise Express matches "user" as the :id param and returns 404.
+
+// GET /api/orders/user/:phone — all orders for a customer
 router.get('/user/:phone', async (req, res) => {
   const { data, error } = await supabase
     .from('orders')
@@ -57,7 +60,7 @@ router.get('/user/:phone', async (req, res) => {
   res.json(data);
 });
 
-// GET /api/orders/:id — get single order by ID
+// GET /api/orders/:id — single order by ID
 router.get('/:id', async (req, res) => {
   const { data, error } = await supabase
     .from('orders')
@@ -65,7 +68,7 @@ router.get('/:id', async (req, res) => {
     .eq('id', req.params.id)
     .single();
 
-  if (error) return res.status(404).json({ message: "Order not found" });
+  if (error) return res.status(404).json({ message: 'Order not found' });
   res.json(data);
 });
 
